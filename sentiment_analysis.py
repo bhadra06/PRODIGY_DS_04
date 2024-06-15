@@ -1,90 +1,54 @@
 import pandas as pd
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-import re
-from textblob import TextBlob
 import matplotlib.pyplot as plt
 import seaborn as sns
-from wordcloud import WordCloud
 
-# Load the dataset
-df = pd.read_csv('Twitter-Sentiment.csv')
+# Step 1: Load the dataset
+file_path = 'twitter_entity_sentiment_analysis.csv'
 
-# Print the column names to identify the correct text column
-print("Column Names in the Dataset:")
+# Load data
+df = pd.read_csv(file_path)
+
+# Step 2: Print the first few rows and column names for verification
+print("Column names in the dataset:")
 print(df.columns)
-
-# Replace 'actual_column_name' with the correct column name for the text data in your dataset
-text_column = 'Borderlands'  # Replace 'Borderlands' with the correct column name
-
-# Display the first few rows of the dataset
-print("\nInitial Dataset:")
+print("\nFirst few rows of the dataset:")
 print(df.head())
 
-# Preprocess the text data
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
+# Step 3: Clean column names (if necessary)
+df.columns = df.columns.str.strip()  # Remove any leading or trailing whitespace
 
-stop_words = set(stopwords.words('english'))
-lemmatizer = WordNetLemmatizer()
+# Step 4: Check if the required columns exist
+required_columns = ['tweet_id', 'entity', 'sentiment', 'text']
+missing_columns = [col for col in required_columns if col not in df.columns]
 
-def preprocess_text(text):
-    # Convert to lowercase
-    text = text.lower()
-    # Remove URLs
-    text = re.sub(r'http\S+', '', text)
-    # Remove special characters and numbers
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    # Tokenize the text
-    words = word_tokenize(text)
-    # Remove stop words and lemmatize
-    words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
-    return ' '.join(words)
+if missing_columns:
+    print(f"Missing columns: {missing_columns}")
+else:
+    print("All required columns are present.")
 
-# Apply preprocessing
-df['clean_text'] = df[text_column].apply(preprocess_text)
+# Step 5: Plot sentiment distribution if 'sentiment' column exists
+if 'Positive' in df.columns:
+    plt.figure(figsize=(10, 6))
+    sns.countplot(x='Positive', data=df, palette='viridis')
+    plt.title('Sentiment Distribution')
+    plt.xlabel('Sentiment')
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Column 'Positive' not found in the dataset.")
 
-# Display the first few rows of the cleaned dataset
-print("\nCleaned Dataset:")
-print(df[[text_column, 'clean_text']].head())
-
-# Perform sentiment analysis
-def get_sentiment(text):
-    blob = TextBlob(text)
-    if blob.sentiment.polarity > 0:
-        return 'positive'
-    elif blob.sentiment.polarity < 0:
-        return 'negative'
-    else:
-        return 'neutral'
-
-df['sentiment'] = df['clean_text'].apply(get_sentiment)
-
-# Display the first few rows with sentiments
-print("\nDataset with Sentiments:")
-print(df[[text_column, 'clean_text', 'sentiment']].head())
-
-# Plot the distribution of sentiments
-plt.figure(figsize=(8, 6))
-sns.countplot(x='sentiment', data=df, order=['positive', 'neutral', 'negative'])
-plt.title('Sentiment Distribution')
-plt.xlabel('Sentiment')
-plt.ylabel('Count')
-plt.show()
-
-# Display word clouds for each sentiment
-sentiments = ['positive', 'negative', 'neutral']
-for sentiment in sentiments:
-    text = ' '.join(df[df['sentiment'] == sentiment]['clean_text'])
-    if text:  # Check if text is not empty
-        wordcloud = WordCloud(width=800, height=400, max_words=100).generate(text)
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wordcloud, interpolation='bilinear')
-        plt.title(f'Word Cloud for {sentiment.capitalize()} Sentiment')
-        plt.axis('off')
-        plt.show()
-    else:
-        print(f"No text data available for {sentiment.capitalize()} sentiment")
+# Step 6: Plot sentiment trends over time (if 'timestamp' and 'sentiment_score' columns exist)
+if 'timestamp' in df.columns and 'sentiment_score' in df.columns:
+    df['timestamp'] = pd.to_datetime(df['timestamp'])  # Convert timestamp to datetime
+    plt.figure(figsize=(14, 7))
+    sns.lineplot(x='timestamp', y='sentiment_score', data=df, hue='sentiment')
+    plt.title('Sentiment Trends Over Time')
+    plt.xlabel('Time')
+    plt.ylabel('Sentiment Score')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Timestamp or sentiment_score columns not found. Skipping sentiment trends visualization.")
